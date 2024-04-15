@@ -13,13 +13,14 @@ import {
   PaginationNext,
   PaginationPrevious
 } from "@/components/ui/pagination"
+import { Suspense } from "react";
 
-const Blog = () => {
+const SearchParamsComponent = () => {
 
   const pathname  = usePathname();
-  const searchParams = useSearchParams()
+  const searchParams = useSearchParams();
   const currentPage = Number(searchParams.get("page")) || 1;
-  const { currentData, maxPage, previous, next } = usePagination(getSortedPosts(posts), 5, currentPage);
+  const { currentData, previous, next } = usePagination(getSortedPosts(posts), 5, currentPage);
   
   const createPageUrl = (page: number) => {
     const params = new URLSearchParams(searchParams);
@@ -47,6 +48,14 @@ const Blog = () => {
         </PaginationContent>
       </Pagination>
     </div>
+  )
+}
+
+const Blog = () => {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <SearchParamsComponent />
+    </Suspense>
   )
 }
 
