@@ -1,0 +1,330 @@
+---
+title: IPL Player Data Scraper
+description: A Node.js script to scrape player data from the IPL website using Puppeteer and Cheerio
+date: 2024-04-15
+tags: ["node.js", "puppeteer", "cheerio", "web scraping"]
+published: true
+---
+
+## Scraping IPL 2023 Cricket Stats with Node.js, Puppeteer, and Cheerio
+
+In the world of cricket enthusiasts and data aficionados, accessing and analyzing detailed statistics from the Indian Premier League (IPL) can be a goldmine of insights. In this blog post, we'll delve into how you can use Node.js along with Puppeteer and Cheerio to scrape IPL 2023 player statistics from the official IPL website and save them for further analysis.
+
+## Introduction to Web Scraping with Node.js
+
+Web scraping involves automating the extraction of data from websites, and Node.js provides an excellent environment for this task due to its asynchronous nature and vast ecosystem of libraries. For this project, we'll utilize Puppeteer for browser automation and Cheerio for parsing HTML content.
+
+## Setting Up the Project
+
+Let's start by setting up our Node.js project. We'll create the necessary files and install the required dependencies.
+
+### 1. Project Structure:
+  - `index.js`: Entry point for the application.
+  - `browser.js`: Manages the browser instance using Puppeteer.
+  - `pageController.js`: Orchestrates the scraping process.
+  - `pageScrapper.js`: Contains functions to scrape specific data from web pages.
+
+### 2. Dependencies:
+
+We'll need to install Puppeteer and Cheerio:
+
+```js:fancyAlert.js
+npm install puppeteer cheerio
+```
+
+### Browser Initialization
+The `browser.js` module is responsible for starting our headless browser using Puppeteer. This browser instance will be reused across scraping functions.
+
+#### Launching a Browser Instance with Puppeteer
+
+```jsx
+import puppeteer from "puppeteer";
+
+const startBrowser = async () => {
+  let browser;
+  try {
+    console.log("Opening browser...");
+    browser = await puppeteer.launch({
+      headless: false, // Set to true for production
+      defaultViewport: null,
+      args: ["--disable-setuid--sandbox"],
+      ignoreHTTPSErrors: true,
+    });
+  } catch (error) {
+    console.log("Could not create a browser instance:", error);
+  }
+  return browser;
+};
+
+export default startBrowser;
+```
+
+Puppeteer is a powerful Node.js library that allows you to automate and control a headless Chrome or Chromium browser. In this code snippet, we define an asynchronous function called `startBrowser` that launches a new browser instance using the `puppeteer.launch()` method.
+
+The `launch` method accepts various options to customize the browser instance. In this example, we set `headless: false` to make the browser visible (for debugging purposes), `defaultViewport: null` to use the default viewport size, `args: ["--disable-setuid--sandbox"]` to disable the sandbox mode (if needed), and `ignoreHTTPSErrors: true` to ignore HTTPS errors when navigating to websites.
+
+If the browser instance is created successfully, the function returns it. Otherwise, it catches and logs any errors that occurred during the launch process.
+
+Finally, the `startBrowser` function is exported as the default export of the module, allowing it to be imported and used in other parts of the application.
+
+### Scraping IPL Player Statistics
+
+The `pageScrapper.js` module contains functions to scrape batting and bowling statistics from the IPL 2023 stats page. We'll use Cheerio to parse the HTML content after Puppeteer retrieves the page.
+
+```jsx
+
+import * as cheerio from "cheerio";
+import fs from "fs";
+
+const scrapperObject = {
+  url: "https://www.iplt20.com/stats/2023",
+  page: null,
+
+  async initializePage(browser) {
+    if (!this.page) {
+      this.page = await browser.newPage();
+      console.log(`Navigating to ${this.url}...`);
+      await this.page.goto(this.url);
+    }
+    return this.page;
+  },
+
+  async batsmanDataScrapper(browser) {
+    try {
+      const page = await this.initializePage(browser);
+
+      await page.$eval('a[ng-click="showAllBattingStatsList()"]', (element) => {
+        element.click();
+      });
+
+      const trs = await page.$$eval("table tbody tr", (trs) =>
+        trs.map((tr) => tr.outerHTML),
+      );
+
+      const batsmanData = [];
+      const statsFields = [
+        "matches",
+        "innings",
+        "notOuts",
+        "runs",
+        "highestScore",
+        "average",
+        "ballsFaced",
+        "strikeRate",
+        "centuries",
+        "halfCenturies",
+        "fours",
+        "sixes",
+      ];
+
+      for (const tr of trs.slice(1, 167)) {
+        const $ = cheerio.load(tr, null, false);
+
+        const tds = $("td:not(:nth-child(2))");
+
+        const data = tds.map((_, td) => $(td).text()).get();
+
+        const position = data[0];
+        const imgSrc = encodeURI($("div.pbi img").attr("src"));
+        const playerName = $(".st-ply-name").text();
+        const teamName = $(".st-ply-tm-name").text();
+
+        let stats = {};
+        for (let i = 0; i < statsFields.length; i++) {
+          stats[statsFields[i]] = data[i + 1];
+        }
+
+        batsmanData.push({ position, imgSrc, playerName, teamName, ...stats });
+      }
+
+      const data = JSON.stringify(batsmanData, null, 2);
+      await fs.promises.writeFile("batsmanData.json", data);
+      console.log("File written successfully");
+    } catch (err) {
+      console.error("Error during scraping:", err);
+    }
+  },
+
+  async bowlerDataScrapper(browser) {
+    const page = await this.initializePage(browser);
+    console.log(`Navigating to Bowler page on  ${this.url}`);
+    try {
+      // await page.goto(this.url);
+      const elements = await page.$$(".cSBDisplay");
+      await elements[1].click();
+
+      const bowlerTab = await page.$("span.cSBListFItems.bowFItem");
+      await bowlerTab.click();
+
+      const purpleCap = await page.$(".cSBListItems.bowlers");
+      await purpleCap.click();
+
+      await page.$eval('a[ng-click="showAllBattingStatsList()"]', (element) => {
+        element.click();
+      });
+
+      await page.waitForTimeout(3000);
+
+      const trs = await page.$$eval("table tbody tr", (trs) =>
+        trs.map((tr) => tr.outerHTML),
+      );
+
+      const bowlerData = [];
+
+      const bowlerStatsField = [
+        "matches",
+        "innings",
+        "overs",
+        "runs",
+        "wickets",
+        "bestBowlingInnings",
+        "average",
+        "economy",
+        "strikeRate",
+        "fourWickets",
+        "fiveWickets",
+      ];
+
+      for (const tr of trs.slice(1, 114)) {
+        const $ = cheerio.load(tr, null, false);
+
+        const tds = $("td:not(:nth-child(2))");
+
+        const data = tds.map((_, td) => $(td).text()).get();
+
+        const position = data[0].trim();
+        const imgSrc = encodeURI($("div.pbi img").attr("src"));
+        const playerName = $(".st-ply-name").text();
+        const teamName = $(".st-ply-tm-name").text();
+
+        let stats = {};
+        for (let i = 0; i < bowlerStatsField.length; i++) {
+          stats[bowlerStatsField[i]] = data[i + 1];
+        }
+
+        bowlerData.push({ position, imgSrc, playerName, teamName, ...stats });
+      }
+      const data = JSON.stringify(bowlerData, null, 2);
+      await fs.promises.writeFile("bowlerData.json", data);
+      console.log("BowlerData File written successfully");
+    } catch (err) {
+      console.log(err);
+    } finally {
+      browser.close();
+    }
+  },
+};
+
+export default scrapperObject;
+
+```
+
+!!! Yes the code is big bear with me i try my best to explain.
+
+1. Libraries:
+  - `cheerio`: This library helps parse HTML content like a web page.
+  - `fs`: This library interacts with the file system, allowing us to save the scraped data.
+
+2. Scrapper Object:
+
+  - The code defines an object called scrapperObject that holds properties and methods for scraping the data.
+
+  - `url`: Stores the target URL for the IPL 2023 batsman stats page (https://www.iplt20.com/stats/2023).
+  - `page`: Initially set to null, this property will hold a reference to the web page object created by the browser.
+
+3. Methods:
+
+  - initializePage(browser):
+
+    - This async function checks if there's a page already created.
+    - If not, it creates a new page using the provided browser object.
+    - It navigates to the target URL and logs a message to the console.
+    - This function ensures the scraper has a valid page object to work with.
+
+  - batsmanDataScrapper(browser):
+
+    - This async function handles the core scraping logic.
+    - It calls initializePage to get a reference to the web page.
+    - It finds a specific element (a[ng-click="showAllBattingStatsList()"]) it finds the Show all button on the bottom as it loads only 20 players first and clicks it using page.$eval. This simulates user interaction to ensure all data is loaded. 
+    - It then uses page.$$eval to find all table rows (tr) within the table body and extracts their outer HTML using map.
+    - An empty array batsmanData is created to store the scraped data.
+    - It defines an array statsFields containing all the statistics it wants to extract (matches, runs, average, etc.).
+    - It loops through each table row (skipping the first header row) and performs the following we are looping till 166 as there are 166 data:
+      - Uses cheerio.load to parse the current row's HTML content. We provide null and false so that cheerio does not add `<html></html>` tag.
+      - Selects all table data cells (td) except the second one as it is image we will collect data later.
+      - Maps through each cell, extracts its text content using cheerio, and stores it in an array called data.
+      - Extracts additional details like player position from the first cell, image source from the player image, player name, and team name using specific element selectors in Cheerio.
+      - If you open browser console you can see the classname of specific cell and use this cheerio syntax to extract data `$(".st-ply-name").text()`.
+      - Now we combine our data by creating a stats object to hold individual player statistics by looping through statsFields and assigning corresponding values from the data array.
+      - Combines player details, team info, and statistics into a single object and pushes it to the batsmanData array.
+    - Finally, converts the batsmanData array into a JSON string and saves it to a file named "batsmanData.json" using fs.promises.writeFile. It also logs a success message to the console.
+    - An error handling block is included to catch any errors during the scraping process and log them to the console.
+
+### Orchestrating the Scraping Process
+
+The pageController.js module coordinates the scraping process by invoking the specific scraping functions defined in pageScrapper.js using the initialized browser instance.
+
+```jsx
+
+// pageController.js
+
+import pageScrapper from "./pageScrapper.js";
+
+const scrapeAll = async (browserInstance) => {
+  let browser;
+  try {
+    browser = await browserInstance;
+    await pageScrapper.batsmanDataScrapper(browser);
+  } catch (error) {
+    console.log("Could not resolve the browser instance:", error);
+  }
+};
+
+export default scrapeAll;
+```
+
+### Running the Scraping Process
+Finally, in index.js, we initiate the browser, then start the scraping process by calling scrapeAll.
+
+```jsx
+// index.js
+
+import startBrowser from "./browser.js";
+import scrapeAll from "./pageController.js";
+
+let browserInstance = startBrowser();
+scrapeAll(browserInstance);
+
+```
+
+## Result
+
+If everything went well the result should be like below.
+
+```jsx
+[
+  {
+    position: "1",
+    imgSrc: "https://scores.iplt20.com/ipl/playerimages/Shubman%20Gill.png",
+    playerName: "Shubman Gill",
+    teamName: "GT",
+    matches: "17",
+    innings: "17",
+    notOuts: "2",
+    runs: "890",
+    highestScore: "129",
+    average: "59.33",
+    ballsFaced: "564",
+    strikeRate: "157.80",
+    centuries: "3",
+    halfCenturies: "4",
+    fours: "85",
+    sixes: "33",
+  },
+  //... other data
+]
+```
+
+Overall, this code demonstrates how to scrape data from a website using libraries like Cheerio and fs. It automates the process of collecting batsman data from the IPL website and saves it in a structured format (JSON) for further analysis or use.
+
+#### Similarly you can try for Bowlers data.
