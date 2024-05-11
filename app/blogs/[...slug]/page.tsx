@@ -1,5 +1,3 @@
-"use client";
-
 import { Post, posts } from "#site/content";
 import { MDXContent } from "@/components/mdx-component";
 

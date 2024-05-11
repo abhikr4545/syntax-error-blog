@@ -5,7 +5,6 @@ import { getFormattedDate, getSortedPosts } from "@/lib/utils";
 import { TrendingUp } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-
 import Hero from "@/assets/hero.png";
 
 export default function Home() {

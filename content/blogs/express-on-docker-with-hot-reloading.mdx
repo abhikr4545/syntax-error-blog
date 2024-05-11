@@ -1,0 +1,125 @@
+---
+title: Express on Docker with Hot Reloading
+description: How to configure hot reloading in docker images for nodejs express applications
+date: 2024-05-11
+tags: ["node.js", "docker", "nodemon", "web dev"]
+published: true
+---
+
+## Creating a Hot Reloading Feature in Docker Images for Node.js Express Applications
+
+In this blog post, we will learn how to create a hot reloading feature in Docker images for a Node.js Express application. This feature is incredibly useful during the development phase as it allows your application to automatically restart whenever a file is changed.
+
+## Prerequisites
+
+Before we begin, make sure you have the following installed on your machine:
+
+  - Node.js
+  - Docker Desktop
+
+
+## Project Setup
+
+Initialize a node project
+
+```js:fancyAlert.js
+npm init -y
+```
+
+Install express and nodemon
+
+```js:fancyAlert.js
+npm i express
+```
+
+```js:fancyAlert.js
+npm i -D nodemon
+```
+
+Our `package.json` file looks like this:
+
+```jsx
+{
+  "name": "docker-hot-reload",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}
+```
+
+Create a `src` folder and a file `index.js` and write the below code
+
+```jsx
+// ./src/index.js
+
+import express from 'express';
+
+const app = express();
+
+app.get("/", (req, res) => {
+  res.json({ message: "From server using nodemon docker" })
+})
+
+app.listen(6969, () => {
+  console.log('Server is running on port 6969')
+})
+```
+
+## Dockerfile
+Our Dockerfile is responsible for creating a Docker image of our application:
+
+```jsx
+FROM node:alpine
+
+WORKDIR /usr/src/app
+
+COPY package*.json ./
+
+RUN npm install
+
+COPY . .
+
+USER node
+
+EXPOSE 6969
+
+CMD [ "node", "./src/index.js" ]
+```
+
+## Docker Compose
+
+We use Docker Compose to define and run our application’s services:
+
+```jsx
+version: '3.9'
+services:
+  express:
+    build: 
+      context: ./
+    ports:
+      - '6969:6969'
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+    command:
+      - npm
+      - run
+      - dev
+```
+
+##  Hot Reloading
+
+The magic of hot reloading happens thanks to `nodemon` and Docker volumes. `nodemon` is a utility that monitors for any changes in your source code and automatically restarts your server. Docker volumes allow us to map a directory on our host machine to a directory in our Docker container. This means that when we make a change to our source code on our host machine, those changes are reflected in our Docker container. When `nodemon` detects these changes, it restarts our server, thus achieving hot reloading.
