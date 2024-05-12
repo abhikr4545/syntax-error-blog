@@ -1,0 +1,201 @@
+---
+title: Monorepo using Turborepo
+description: Creating a fullstack app using Nextjs and Nestjs using monorepo
+date: 2024-05-12
+tags: ["Nextjs", "Nextjs", "Turborepo"]
+published: true
+---
+
+In the realm of web development, efficiency and organization reign supreme. Monorepos, a concept housing multiple projects within a single codebase, offer a compelling solution for streamlining development workflows. This blog delves into crafting a robust monorepo using Turborepo, NestJS for the backend, and Next.js for the frontend, empowering you to build fullstack applications seamlessly.
+
+## Why Monorepo?
+
+Imagine managing separate repositories for your frontend (Next.js) and backend (NestJS) code. Updates, bug fixes, and version control become a juggling act. Monorepos eliminate this chaos by uniting both projects under one roof. Benefits include:
+
+- Simplified dependency management
+- Streamlined development
+- Improved code consistency
+- Enhanced collaboration
+
+## Enter Turborepo: The Monorepo Maestro
+
+Turborepo, a next-generation monorepo tool, takes center stage. Its lightning-fast build speeds and intuitive workflow make it a perfect choice for our project. Here's what Turborepo brings to the table:
+
+- Cache invalidation
+- Flexible project structure
+- Seamless integration
+
+## Building the Monorepo
+
+- 1. Project Setup:
+
+```jsx
+npx create-turbo@latest my-turborepo-project
+```
+
+You will be prompted with choose your workspace choose anyone you prefer for this demo I am using npm workspaces
+
+```jsx
+npm workspaces
+yarn workspaces
+pnpm workspaces
+```
+
+After choosing `npm workspaces` installation will begin it will take sometime your project will look like below.
+
+```jsx
+turbo.json
+tsconfig.json
+README.md
+packages
+apps
+package-lock.json
+node_modules
+package.json
+```
+
+- 2. Nextjs Frontend:
+
+Go in the `apps` folder you will see 2 folders docs and web. These folders contain your frontend application.
+
+```jsx
+cd ./apps
+```
+
+```jsx
+web
+docs
+```
+
+You can go inside the folder and modify things it is a normal Nextjs application.
+
+- 3. Nestjs Backend:
+
+To create a nestjs backend in turborepo make a folder called api(you can name it anything) inside the apps folder.
+
+```jsx
+mkdir api
+cd api
+```
+
+Once the folder is created run below command to generate a new nestjs project.
+
+```jsx
+nest new ./
+```
+
+Use `npm` as your dependency manager.
+
+- 3. Running the project
+
+After creating the api folder come the root of the project open the `package.json` file.
+
+```jsx
+"scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "lint": "turbo lint",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\""
+  },
+```
+
+You will see `dev` which runs `turbo dev`. Turbo dev will go inside each project inside apps and run there dev scripts.
+
+Now run the project
+
+```jsx
+#run from the root of the project
+npm run dev
+```
+
+You will see the logs generated in your console.
+
+But wait where is the Nestjs logs. We will see in next part.
+
+- 4. Fixing the Nestjs dev scripts.
+
+As stated earlier the `turbo dev` script will go inside every projetc inside apps and run there dev script. But there
+is no `dev` script inside the `package.json` file of nestjs project. There is `start:dev` which turbo repo cannot understand.
+
+```jsx
+"scripts": {
+    "build": "nest build",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
+    "start:prod": "node dist/main",
+    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage",
+    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+    "test:e2e": "jest --config ./test/jest-e2e.json"
+  },
+```
+
+For turborepo to work you need to change the `start:dev` to `dev`.
+
+```jsx
+"scripts": {
+    "build": "nest build",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "start": "nest start",
+    "dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
+    "start:prod": "node dist/main",
+    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage",
+    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+    "test:e2e": "jest --config ./test/jest-e2e.json"
+  },
+```
+
+Also by default the Nestjs project runs on port 3000 which needs to change.
+
+Go inside `/apps/api/src` open `main.ts` file and change the port to 3456.
+
+```js
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+  await app.listen(3456);
+}
+bootstrap();
+```
+
+We are all set now again go to the root of the project and run
+
+```
+npm run dev
+```
+
+You project will start and you will similar logs in your console.
+
+```logs
+docs:dev:   ▲ Next.js 14.2.3
+docs:dev:   - Local:        http://localhost:3001
+docs:dev:
+docs:dev:  ✓ Starting...
+web:dev:   ▲ Next.js 14.2.3
+web:dev:   - Local:        http://localhost:3002
+web:dev:
+web:dev:  ✓ Starting...
+api:dev:
+[3:17:16 PM] Starting compilation in watch mode...
+
+api:dev: [3:17:17 PM] Found 0 errors. Watching for file changes.
+api:dev:
+api:dev: [Nest] 65057  - 05/12/2024, 3:17:18 PM     LOG [NestFactory] Starting Nest application...
+api:dev: [Nest] 65057  - 05/12/2024, 3:17:18 PM     LOG [InstanceLoader] AppModule dependencies initialized +5ms
+api:dev: [Nest] 65057  - 05/12/2024, 3:17:18 PM     LOG [RoutesResolver] AppController {/}: +2ms
+api:dev: [Nest] 65057  - 05/12/2024, 3:17:18 PM     LOG [RouterExplorer] Mapped {/, GET} route +1ms
+api:dev: [Nest] 65057  - 05/12/2024, 3:17:18 PM     LOG [NestApplication] Nest application successfully started +1ms
+```
+
+## Conclusion
+By leveraging Turborepo, NestJS, and Next.js in a monorepo setup, you gain a powerful foundation for building fullstack applications. This approach fosters efficiency, collaboration, and code maintainability, propelling your development efforts to new heights.
